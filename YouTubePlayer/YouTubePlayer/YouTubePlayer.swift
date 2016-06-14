@@ -34,21 +34,21 @@ public enum YouTubePlaybackQuality: String {
 }
 
 public protocol YouTubePlayerDelegate {
-    func playerReady(videoPlayer: YouTubePlayerView)
-    func playerStateChanged(videoPlayer: YouTubePlayerView, playerState: YouTubePlayerState)
-    func playerQualityChanged(videoPlayer: YouTubePlayerView, playbackQuality: YouTubePlaybackQuality)
+    func playerReady(_ videoPlayer: YouTubePlayerView)
+    func playerStateChanged(_ videoPlayer: YouTubePlayerView, playerState: YouTubePlayerState)
+    func playerQualityChanged(_ videoPlayer: YouTubePlayerView, playbackQuality: YouTubePlaybackQuality)
 }
 
 // Make delegate methods optional by providing default implementations
 public extension YouTubePlayerDelegate {
     
-    func playerReady(videoPlayer: YouTubePlayerView) {}
-    func playerStateChanged(videoPlayer: YouTubePlayerView, playerState: YouTubePlayerState) {}
-    func playerQualityChanged(videoPlayer: YouTubePlayerView, playbackQuality: YouTubePlaybackQuality) {}
+    func playerReady(_ videoPlayer: YouTubePlayerView) {}
+    func playerStateChanged(_ videoPlayer: YouTubePlayerView, playerState: YouTubePlayerState) {}
+    func playerQualityChanged(_ videoPlayer: YouTubePlayerView, playbackQuality: YouTubePlaybackQuality) {}
     
 }
 
-private extension NSURL {
+private extension URL {
     func queryStringComponents() -> [String: AnyObject] {
 
         var dict = [String: AnyObject]()
@@ -57,10 +57,10 @@ private extension NSURL {
         if let query = self.query {
 
             // Loop through pairings (separated by &)
-            for pair in query.componentsSeparatedByString("&") {
+            for pair in query.components(separatedBy: "&") {
 
                 // Pull key, val from from pair parts (separated by =) and set dict[key] = value
-                let components = pair.componentsSeparatedByString("=")
+                let components = pair.components(separatedBy: "=")
                 dict[components[0]] = components[1]
             }
 
@@ -70,7 +70,7 @@ private extension NSURL {
     }
 }
 
-public func videoIDFromYouTubeURL(videoURL: NSURL) -> String? {
+public func videoIDFromYouTubeURL(_ videoURL: URL) -> String? {
     if let host = videoURL.host, pathComponents = videoURL.pathComponents where pathComponents.count > 1 && host.hasSuffix("youtu.be") {
         return pathComponents[1]
     }
@@ -124,31 +124,31 @@ public class YouTubePlayerView: UIView, UIWebViewDelegate {
 
     // MARK: Web view initialization
 
-    private func buildWebView(parameters: [String: AnyObject]) {
+    private func buildWebView(_ parameters: [String: AnyObject]) {
         webView = UIWebView()
         webView.allowsInlineMediaPlayback = true
         webView.mediaPlaybackRequiresUserAction = false
         webView.delegate = self
-        webView.scrollView.scrollEnabled = false
+        webView.scrollView.isScrollEnabled = false
     }
 
 
     // MARK: Load player
 
-    public func loadVideoURL(videoURL: NSURL) {
+    public func loadVideoURL(_ videoURL: URL) {
         if let videoID = videoIDFromYouTubeURL(videoURL) {
             loadVideoID(videoID)
         }
     }
 
-    public func loadVideoID(videoID: String) {
+    public func loadVideoID(_ videoID: String) {
         var playerParams = playerParameters()
         playerParams["videoId"] = videoID
 
         loadWebViewWithParameters(playerParams)
     }
 
-    public func loadPlaylistID(playlistID: String) {
+    public func loadPlaylistID(_ playlistID: String) {
         // No videoId necessary when listType = playlist, list = [playlist Id]
         playerVars["listType"] = "playlist"
         playerVars["list"] = playlistID
@@ -175,7 +175,7 @@ public class YouTubePlayerView: UIView, UIWebViewDelegate {
         evaluatePlayerCommand("clearVideo()")
     }
 
-    public func seekTo(seconds: Float, seekAhead: Bool) {
+    public func seekTo(_ seconds: Float, seekAhead: Bool) {
         evaluatePlayerCommand("seekTo(\(seconds), \(seekAhead))")
     }
     
@@ -197,15 +197,15 @@ public class YouTubePlayerView: UIView, UIWebViewDelegate {
         evaluatePlayerCommand("nextVideo()")
     }
     
-    private func evaluatePlayerCommand(command: String) -> String? {
+    private func evaluatePlayerCommand(_ command: String) -> String? {
         let fullCommand = "player." + command + ";"
-        return webView.stringByEvaluatingJavaScriptFromString(fullCommand)
+        return webView.stringByEvaluatingJavaScript(from: fullCommand)
     }
 
 
     // MARK: Player setup
 
-    private func loadWebViewWithParameters(parameters: YouTubePlayerParameters) {
+    private func loadWebViewWithParameters(_ parameters: YouTubePlayerParameters) {
 
         // Get HTML from player file in bundle
         let rawHTMLString = htmlStringWithFilePath(playerHTMLPath())!
@@ -214,22 +214,22 @@ public class YouTubePlayerView: UIView, UIWebViewDelegate {
         let jsonParameters = serializedJSON(parameters)!
 
         // Replace %@ in rawHTMLString with jsonParameters string
-        let htmlString = rawHTMLString.stringByReplacingOccurrencesOfString("%@", withString: jsonParameters)
+        let htmlString = rawHTMLString.replacingOccurrences(of: "%@", with: jsonParameters)
 
         // Load HTML in web view
-        webView.loadHTMLString(htmlString, baseURL: NSURL(string: "about:blank"))
+        webView.loadHTMLString(htmlString, baseURL: URL(string: "about:blank"))
     }
 
     private func playerHTMLPath() -> String {
-        return NSBundle(forClass: self.classForCoder).pathForResource("YTPlayer", ofType: "html")!
+        return Bundle(for: self.classForCoder).pathForResource("YTPlayer", ofType: "html")!
     }
 
-    private func htmlStringWithFilePath(path: String) -> String? {
+    private func htmlStringWithFilePath(_ path: String) -> String? {
 
         do {
 
             // Get HTML string from path
-            let htmlString = try NSString(contentsOfFile: path, encoding: NSUTF8StringEncoding)
+            let htmlString = try NSString(contentsOfFile: path, encoding: String.Encoding.utf8.rawValue)
 
             return htmlString as String
 
@@ -264,14 +264,14 @@ public class YouTubePlayerView: UIView, UIWebViewDelegate {
         ]
     }
 
-    private func serializedJSON(object: AnyObject) -> String? {
+    private func serializedJSON(_ object: AnyObject) -> String? {
 
         do {
             // Serialize to JSON string
-            let jsonData = try NSJSONSerialization.dataWithJSONObject(object, options: NSJSONWritingOptions.PrettyPrinted)
+            let jsonData = try JSONSerialization.data(withJSONObject: object, options: JSONSerialization.WritingOptions.prettyPrinted)
 
             // Succeeded
-            return NSString(data: jsonData, encoding: NSUTF8StringEncoding) as? String
+            return NSString(data: jsonData, encoding: String.Encoding.utf8.rawValue) as? String
 
         } catch let jsonError {
 
@@ -286,7 +286,7 @@ public class YouTubePlayerView: UIView, UIWebViewDelegate {
 
     // MARK: JS Event Handling
 
-    private func handleJSEvent(eventURL: NSURL) {
+    private func handleJSEvent(_ eventURL: URL) {
 
         // Grab the last component of the queryString as string
         let data: String? = eventURL.queryStringComponents()["data"] as? String
@@ -326,9 +326,9 @@ public class YouTubePlayerView: UIView, UIWebViewDelegate {
 
     // MARK: UIWebViewDelegate
 
-    public func webView(webView: UIWebView, shouldStartLoadWithRequest request: NSURLRequest, navigationType: UIWebViewNavigationType) -> Bool {
+    public func webView(_ webView: UIWebView, shouldStartLoadWith request: URLRequest, navigationType: UIWebViewNavigationType) -> Bool {
 
-        let url = request.URL
+        let url = request.url
 
         // Check if ytplayer event and, if so, pass to handleJSEvent
         if let url = url where url.scheme == "ytplayer" { handleJSEvent(url) }
@@ -337,7 +337,7 @@ public class YouTubePlayerView: UIView, UIWebViewDelegate {
     }
 }
 
-private func printLog(strings: CustomStringConvertible...) {
+private func printLog(_ strings: CustomStringConvertible...) {
     let toPrint = ["[YouTubePlayer]"] + strings
     print(toPrint, separator: " ", terminator: "\n")
 }
